@@ -1,0 +1,7 @@
+[Unit]
+Description=Budget Agent Pipeline
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/budget-agent
+ExecStart=%h/budget-agent/.venv/bin/python scripts/run_pipeline.py

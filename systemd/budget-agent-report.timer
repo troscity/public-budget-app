@@ -1,0 +1,9 @@
+[Unit]
+Description=Budget Agent Monthly Report (last month)
+
+[Timer]
+OnCalendar=monthly
+Persistent=true
+
+[Install]
+WantedBy=timers.target

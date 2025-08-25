@@ -1,0 +1,10 @@
+# Optional monthly budget by top-level category (AUD)
+budgets:
+  Income: 0
+  Fixed: 2000
+  Groceries: 600
+  Eating Out: 350
+  Transport: 250
+  Retail: 200
+  Health & Fitness: 250
+  Misc: 150

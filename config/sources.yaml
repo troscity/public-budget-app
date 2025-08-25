@@ -1,0 +1,35 @@
+# Hints for CSV parsing; adjust per your exports
+# Keys are source folder names in data/raw/<source>
+sources:
+  ubank:
+    date_cols: ["Date and time", "Date", "Transaction Date", "Posted Date"]
+    desc_cols: ["Description", "Details", "Narrative"]
+    amount_cols: ["Amount", "Debit", "Credit"]
+    balance_cols: ["Balance"]
+    currency: "AUD"
+    account: "Ubank Spend"
+    debit_negative: true
+  qantas:
+    date_cols: ["Date", "Transaction Date", "Posted Date"]
+    desc_cols: ["Description", "Merchant"]
+    amount_cols: ["Amount", "Debit", "Credit"]
+    balance_cols: []
+    currency: "AUD"
+    account: "Qantas CC"
+    debit_negative: true
+  paypal:
+    date_cols: ["Date", "Transaction Date"]
+    desc_cols: ["Name", "Type", "Item Title", "Description"]
+    amount_cols: ["Amount", "Gross"]
+    balance_cols: ["Balance"]
+    currency: "AUD"
+    account: "PayPal"
+    debit_negative: true
+  applepay:
+    date_cols: ["Date", "Transaction Date"]
+    desc_cols: ["Merchant", "Description"]
+    amount_cols: ["Amount"]
+    balance_cols: []
+    currency: "AUD"
+    account: "Apple Pay"
+    debit_negative: true

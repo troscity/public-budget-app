@@ -1,0 +1,7 @@
+[Unit]
+Description=Budget Agent Monthly Report
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/budget-agent
+ExecStart=%h/budget-agent/.venv/bin/python scripts/report_monthly.py --month %i

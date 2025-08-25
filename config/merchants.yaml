@@ -1,0 +1,66 @@
+# Regex rules are applied in order; first match wins
+rules:
+  - match: '(?i)rent|real\s*estate|property\s*mgmt'
+    category: Fixed
+    subcategory: Rent
+    fixed: true
+
+  - match: '(?i)agl|electric|energy'
+    category: Fixed
+    subcategory: Power
+    fixed: true
+
+  - match: '(?i)aussie\s*broadband|aussiebb|internet'
+    category: Fixed
+    subcategory: Internet
+    fixed: true
+
+  - match: '(?i)aldi\s*mobile|telco|mobile'
+    category: Fixed
+    subcategory: Mobile
+    fixed: true
+
+  - match: '(?i)netflix|tidal|youtube|strava|trainerroad|chatgpt|obsidian|apple\s*storage|auscycling'
+    category: Fixed
+    subcategory: Subscriptions
+    fixed: true
+
+  - match: '(?i)aldi'
+    category: Groceries
+    subcategory: General
+    fixed: false
+
+  - match: '(?i)coles|woolworths|woolies|iga'
+    category: Groceries
+    subcategory: General
+    fixed: false
+
+  - match: '(?i)jack\s*purcell|shoes|retail'
+    category: Retail
+    subcategory: General
+    fixed: false
+
+  - match: '(?i)cafe|coffee|espresso|restaurant|takeaway|ubereats|menulog'
+    category: Eating Out
+    subcategory: Cafes
+    fixed: false
+
+  - match: '(?i)gym|fitness|health|clinic|physio|pharmacy'
+    category: Health & Fitness
+    subcategory: Gym
+    fixed: false
+
+  - match: '(?i)bp|caltex|ampol|7-?eleven|fuel'
+    category: Transport
+    subcategory: Fuel
+    fixed: false
+
+  - match: '(?i)uber|lyft|diDi|rideshare'
+    category: Transport
+    subcategory: Rideshare
+    fixed: false
+
+  - match: '(?i)oppo?al|paypal'
+    category: Misc
+    subcategory: General
+    fixed: false

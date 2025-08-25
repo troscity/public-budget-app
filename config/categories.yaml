@@ -1,0 +1,17 @@
+categories:
+  - name: Income
+    subs: [Salary, Refunds, Interest, Dividends]
+  - name: Fixed
+    subs: [Rent, Power, Internet, Mobile, Subscriptions, Insurance]
+  - name: Groceries
+    subs: [General]
+  - name: Eating Out
+    subs: [Cafes, Restaurants, Takeaway]
+  - name: Transport
+    subs: [Fuel, Public, Rideshare, Parking]
+  - name: Retail
+    subs: [General]
+  - name: Health & Fitness
+    subs: [Gym, Sports, Medical]
+  - name: Misc
+    subs: [General]
