@@ -25,15 +25,31 @@ def build_report(ym):
       WHERE posted_at >= '{start}' AND posted_at < '{end}'
     """)
 
-    # Calculate totals including internal transfers
-    inc_total = con.execute("SELECT COALESCE(SUM(amount),0) AS income FROM mtx WHERE amount > 0").fetchone()[0]
-    exp_total = con.execute("SELECT COALESCE(SUM(amount),0) AS expenses FROM mtx WHERE amount < 0").fetchone()[0]
-    net_total = inc_total + exp_total
+    # Exclude internal transfers; separate refunds
+    inc_total = con.execute("""
+      SELECT COALESCE(SUM(amount),0)
+      FROM mtx
+      WHERE amount > 0
+        AND (internal_transfer IS NOT TRUE)
+        AND NOT (category = 'Income' AND subcategory = 'Refunds')
+    """).fetchone()[0]
 
-    # Calculate totals EXCLUDING internal transfers
-    inc_real = con.execute("SELECT COALESCE(SUM(amount),0) AS income FROM mtx WHERE amount > 0 AND (internal_transfer IS NULL OR internal_transfer = false)").fetchone()[0]
-    exp_real = con.execute("SELECT COALESCE(SUM(amount),0) AS expenses FROM mtx WHERE amount < 0 AND (internal_transfer IS NULL OR internal_transfer = false)").fetchone()[0]
-    net_real = inc_real + exp_real
+    refunds = con.execute("""
+      SELECT COALESCE(SUM(amount),0)
+      FROM mtx
+      WHERE amount > 0
+        AND (internal_transfer IS NOT TRUE)
+        AND (category = 'Income' AND subcategory = 'Refunds')
+    """).fetchone()[0]
+
+    exp_total = con.execute("""
+      SELECT COALESCE(SUM(amount),0)
+      FROM mtx
+      WHERE amount < 0
+        AND (internal_transfer IS NOT TRUE)
+    """).fetchone()[0]
+
+    net_total = inc_total + exp_total + refunds
 
     # Count internal transfers
     transfer_count = con.execute("SELECT COUNT(*) FROM mtx WHERE internal_transfer = true").fetchone()[0]
@@ -67,15 +83,11 @@ def build_report(ym):
     md.append("")
     md.append(f"*This report shows data for {ym} only, not cumulative totals*")
     md.append("")
-    md.append("## Summary (Including Internal Transfers)")
-    md.append(f"**Income:** ${inc_total:,.2f}")
-    md.append(f"**Expenses:** ${exp_total:,.2f}")
-    md.append(f"**Net:** ${net_total:,.2f}")
-    md.append("")
     md.append("## Summary (Excluding Internal Transfers)")
-    md.append(f"**Income:** ${inc_real:,.2f}")
-    md.append(f"**Expenses:** ${exp_real:,.2f}")
-    md.append(f"**Net:** ${net_real:,.2f}")
+    md.append(f"**Income (excl. refunds):** ${inc_total:,.2f}")
+    md.append(f"**Expenses (excl. transfers):** ${exp_total:,.2f}")
+    md.append(f"**Refunds:** ${refunds:,.2f}")
+    md.append(f"**Net:** ${net_total:,.2f}")
     md.append("")
     md.append(f"**Internal Transfers:** {transfer_count} transactions totaling ${transfer_amount:,.2f}")
     md.append("")

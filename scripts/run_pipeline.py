@@ -15,10 +15,30 @@ def is_internal_transfer(merchant, description_raw, amount):
     merchant_lower = merchant.lower()
     desc_lower = description_raw.lower()
     
-    # Common internal transfer patterns
+    # Enhanced regex patterns for transfer detection
+    TRANSFER_PATTERNS = [
+        r'\bgeneral credit card deposit\b',
+        r'\bcredit card payment\b',
+        r'\bcard payment\b',
+        r'\bpayment received\b',
+        r'\bbpay\b',
+        r'\bdirect debit\b',
+        r'\btransfer\b',
+        r'\bpay anyone\b',
+        r'\binternal transfer\b',
+        r'\bqantas money\b|\bvisa\b|\bmastercard\b|\bamex\b',
+    ]
+    
+    # Check if merchant or description matches transfer patterns
+    if any(re.search(p, merchant_lower) or re.search(p, desc_lower) for p in TRANSFER_PATTERNS):
+        return True
+    
+    # Common internal transfer keywords (fallback)
     transfer_keywords = [
         'internal transfer', 'transfer', 'withdrawal', 'deposit',
-        'internal', 'opening deposit', 'funds transfer'
+        'internal', 'opening deposit', 'funds transfer', 'account transfer',
+        'sweep', 'account sweep', 'balance transfer', 'fund transfer',
+        'bank transfer', 'interbank transfer', 'eft transfer'
     ]
     
     # Check if merchant or description contains transfer keywords
@@ -26,11 +46,27 @@ def is_internal_transfer(merchant, description_raw, amount):
                      for keyword in transfer_keywords)
     
     # Additional checks for large round numbers that are likely transfers
-    is_large_round = abs(amount) >= 500 and amount % 100 == 0
+    is_large_round = abs(amount) >= 100 and amount % 50 == 0
     
-    # Exclude legitimate expenses that might match (like rent)
-    is_legitimate = any(keyword in merchant_lower for keyword in ['rent', 'bpay', 'bill'])
+    # Check for specific patterns that are almost always transfers
+    specific_transfer_patterns = [
+        'paypal general credit card deposit',
+        'credit card payment',
+        'card payment',
+        'internal transfer',
+        'account sweep'
+    ]
     
+    is_specific_transfer = any(pattern in desc_lower for pattern in specific_transfer_patterns)
+    
+    # Exclude legitimate expenses that might match (like rent, bills)
+    is_legitimate = any(keyword in merchant_lower for keyword in ['rent', 'bpay', 'bill', 'insurance', 'utilities'])
+    
+    # If it's a specific transfer pattern, mark it regardless of amount
+    if is_specific_transfer:
+        return True
+    
+    # Otherwise, use the combination of transfer keywords and large round numbers
     return is_transfer and is_large_round and not is_legitimate
 
 def parse_csv(path, source_cfg):
@@ -177,6 +213,75 @@ def detect_recurring(con):
     """
     con.execute(q)
 
+def flag_internal_transfers(con, window_days=3, tolerance=0.01):
+    """
+    Second pass: Mark pairs of equal/opposite amounts across different accounts within N days.
+    This catches CC payments, PayPal funding, OSKO/BPAY sweeps, etc., even when the text isn't obvious.
+    """
+    print(f"🔍 Flagging internal transfers (window: {window_days} days, tolerance: ${tolerance})")
+    
+    # Mark pairs of equal/opposite amounts across different accounts within N days
+    con.execute(f"""
+    WITH base AS (
+      SELECT txn_id, posted_at AS t, account, amount, internal_transfer
+      FROM transactions
+      WHERE internal_transfer IS NULL OR internal_transfer = FALSE
+    ),
+    pairs AS (
+      SELECT a.txn_id AS a_id, b.txn_id AS b_id
+      FROM base a
+      JOIN base b
+        ON a.txn_id <> b.txn_id
+       AND a.account <> b.account
+       AND ABS(a.amount + b.amount) <= {tolerance}
+       AND ABS(date_diff('day', a.t, b.t)) <= {window_days}
+    )
+    UPDATE transactions
+    SET internal_transfer = TRUE
+    WHERE txn_id IN (
+      SELECT a_id FROM pairs
+      UNION ALL
+      SELECT b_id FROM pairs
+    );
+    """)
+    
+    # Count how many were flagged
+    flagged_count = con.execute("""
+        SELECT COUNT(*) FROM transactions WHERE internal_transfer = TRUE
+    """).fetchone()[0]
+    
+    print(f"   Flagged {flagged_count} transactions as internal transfers")
+    
+    # Commit the changes
+    con.commit()
+
+def identify_refunds(df):
+    """
+    Identify refunds vs real income based on transaction patterns.
+    Refunds are typically positive amounts that represent money coming back.
+    """
+    df = df.copy()
+    
+    # Add refund flag
+    df['is_refund'] = False
+    
+    # Common refund indicators
+    refund_keywords = [
+        'refund', 'return', 'credit', 'adjustment', 'reversal',
+        'chargeback', 'dispute', 'correction', 'overcharge'
+    ]
+    
+    # Mark transactions with refund keywords
+    for keyword in refund_keywords:
+        mask = df['description_raw'].str.lower().str.contains(keyword, na=False)
+        df.loc[mask, 'is_refund'] = True
+    
+    # Mark transactions that are likely refunds based on merchant patterns
+    # (e.g., if you have a large expense from a merchant, and later a positive amount)
+    # This is a simplified approach - could be enhanced with more sophisticated logic
+    
+    return df
+
 
 def main():
     from scripts.common import connect_db  # local import so file can be created without duckdb installed
@@ -206,6 +311,9 @@ def main():
                     os.replace(fpath, dest)
                     continue
                 
+                # Identify refunds
+                df = identify_refunds(df)
+                
                 df["imported_at"] = pd.Timestamp.now(tz="UTC")
                 # Fill defaults
                 for col in ["category","subcategory","fixed"]:
@@ -218,7 +326,7 @@ def main():
                     SELECT
                         txn_id, posted_at, description_raw, merchant, amount, currency,
                         account, method, balance, reference, category, subcategory,
-                        fixed, recurring, source, imported_at, internal_transfer
+                        fixed, recurring, source, imported_at, internal_transfer, is_refund
                     FROM df
                 """)
                 total_new += len(df)
@@ -232,6 +340,7 @@ def main():
                 continue
 
     # recurring detector
+    flag_internal_transfers(con)
     detect_recurring(con)
     print(f"Ingest complete. New records: {total_new}")
 
